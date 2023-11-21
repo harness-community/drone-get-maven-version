@@ -37,6 +37,10 @@ export MAVEN_PROJECT_VERSION=${POM_VERSION}
 # Build docker image with the above version
 docker build --build-arg MAVEN_PROJECT_VERSION=${MAVEN_PROJECT_VERSION} -t ${PLUGIN_DOCKER_IMAGE_NAME}:latest . || exit 1
 
+docker tag ${PLUGIN_DOCKER_IMAGE_NAME}:latest ${PLUGIN_DOCKERHUB_USERNAME}/${PLUGIN_DOCKER_IMAGE_NAME}:latest || exit 1
+
 # Push docker image to dockerhub
 docker login -u ${PLUGIN_DOCKERHUB_USERNAME} -p ${PLUGIN_DOCKERHUB_PAT} || exit 1
-docker push ${PLUGIN_DOCKER_IMAGE_NAME}:latest || exit 1
+docker push ${PLUGIN_DOCKERHUB_USERNAME}/${PLUGIN_DOCKER_IMAGE_NAME}:latest || exit 1
+
+echo "Successfully pushed docker image to dockerhub - ${PLUGIN_DOCKERHUB_USERNAME}/${PLUGIN_DOCKER_IMAGE_NAME}:latest"
