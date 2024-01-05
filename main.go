@@ -5,8 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-
-	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -37,22 +35,18 @@ func main() {
 	fmt.Println("POM Version: ", pomVersion)
 	os.Setenv("POM_VERSION", pomVersion)
 
-	// outputFilePath := os.Getenv("DRONE_OUTPUT")
-	outputFilePath := "DRONE_OUTPUT.env"
-	key := "POM_VERSION"
-
-	err = WritePluginOutputFile(outputFilePath, key, pomVersion)
+	outputFile, err := os.OpenFile(os.Getenv("DRONE_OUTPUT"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		fmt.Println("Error writing POM version to file:", err)
+		fmt.Println("Error opening output file:", err)
+		os.Exit(1)
+	}
+	defer outputFile.Close()
+
+	_, err = fmt.Fprintf(outputFile, "POM_VERSION=%s\n", pomVersion)
+	if err != nil {
+		fmt.Println("Error writing to output file:", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("%s=%s written to %s\n", key, pomVersion, outputFilePath)
-}
-
-func WritePluginOutputFile(outputFilePath, key, value string) error {
-	output := map[string]string{
-		key: value,
-	}
-	return godotenv.Write(output, outputFilePath)
+	fmt.Println("POM version written to DRONE_OUTPUT.env file")
 }
