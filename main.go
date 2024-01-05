@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 )
 
@@ -16,13 +15,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	var pathSeparator string
-
-	if runtime.GOOS == "windows" {
-		pathSeparator = "\\"
-	} else {
-		pathSeparator = "/"
-	}
+	pathSeparator := "/"
 
 	fmt.Println("POM Path: ", pomPath)
 
