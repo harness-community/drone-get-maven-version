@@ -1,0 +1,21 @@
+FROM --platform=windows/amd64 mcr.microsoft.com/windows/servercore:ltsc2022
+
+USER ContainerAdministrator
+
+WORKDIR C:\\app
+
+ENV chocolateyVersion=1.4.0
+
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+RUN Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+
+RUN choco install maven -y
+
+RUN choco install openjdk -y
+
+WORKDIR C:\\app
+
+ADD drone-maven.exe /app/
+
+ENTRYPOINT ["C:\\app\\drone-maven.exe"]
