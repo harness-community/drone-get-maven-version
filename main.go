@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -34,4 +36,21 @@ func main() {
 
 	fmt.Println("POM Version: ", pomVersion)
 	os.Setenv("POM_VERSION", pomVersion)
+
+	outputFilePath := "pom_version.txt"
+	err = WritePOMVersionToFile(outputFilePath, pomVersion)
+
+	if err != nil {
+		fmt.Println("Error: ", err.Error())
+		os.Exit(1)
+	}
+
+	fmt.Println("POM Version written to file: ", outputFilePath)
+}
+
+func WritePOMVersionToFile(outputFilePath, pomVersion string) error {
+	output := map[string]string{
+		"POM_VERSION": pomVersion,
+	}
+	return godotenv.Write(output, outputFilePath)
 }
