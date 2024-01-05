@@ -37,20 +37,21 @@ func main() {
 	fmt.Println("POM Version: ", pomVersion)
 	os.Setenv("POM_VERSION", pomVersion)
 
-	outputFilePath := "pom_version.txt"
-	err = WritePOMVersionToFile(outputFilePath, pomVersion)
+	outputFilePath := os.Getenv("DRONE_OUTPUT")
+	key := "POM_VERSION"
 
+	err = WritePluginOutputFile(outputFilePath, key, pomVersion)
 	if err != nil {
-		fmt.Println("Error: ", err.Error())
+		fmt.Println("Error writing POM version to file:", err)
 		os.Exit(1)
 	}
 
-	fmt.Println("POM Version written to file: ", outputFilePath)
+	fmt.Printf("%s=%s written to %s\n", key, pomVersion, outputFilePath)
 }
 
-func WritePOMVersionToFile(outputFilePath, pomVersion string) error {
+func WritePluginOutputFile(outputFilePath, key, value string) error {
 	output := map[string]string{
-		"POM_VERSION": pomVersion,
+		key: value,
 	}
 	return godotenv.Write(output, outputFilePath)
 }
