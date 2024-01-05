@@ -37,7 +37,8 @@ func main() {
 	fmt.Println("POM Version: ", pomVersion)
 	os.Setenv("POM_VERSION", pomVersion)
 
-	outputFilePath := os.Getenv("DRONE_OUTPUT")
+	// outputFilePath := os.Getenv("DRONE_OUTPUT")
+	outputFilePath := "DRONE_OUTPUT.env"
 	key := "POM_VERSION"
 
 	err = WritePluginOutputFile(outputFilePath, key, pomVersion)
