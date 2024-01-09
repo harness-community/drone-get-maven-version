@@ -1,54 +1,56 @@
-# Introducing the drone-get-maven-version Plugin
+# drone-push-helm-chart-docker-registry
 
-At Harness, we are dedicated to enhancing Continuous Integration (CI) and Continuous Deployment (CD) processes by providing tools that simplify complex workflows. We understand the significance of seamlessly integrating Maven builds with Docker image creation. That's why we are thrilled to introduce the **drone-get-maven-version** plugin. This plugin streamlines the process of accessing the POM Version, enabling you to effortlessly manage versioning and image creation in your CI/CD pipelines.
+- [Synopsis](#Synopsis)
+- [Parameters](#Paramaters)
+- [Plugin Image](#Plugin-Image)
+- [Examples](#Examples)
 
-### What is the drone-get-maven-version plugin?
+## Synopsis
 
-The **drone-get-maven-version** plugin is a versatile tool designed to simplify the integration of Maven builds with Docker image creation. This plugin automates the process of fetching the POM version in your maven project.
+This plugin is designed to streamline the packaging and distribution of Helm charts to a Docker registry.
 
-### Build the Docker Image
+To learn how to utilize Drone plugins in Harness CI, please consult the provided [documentation](https://developer.harness.io/docs/continuous-integration/use-ci/use-drone-plugins/run-a-drone-plugin-in-ci).
 
-Using the plugin is straightforward. You can run the script directly using the following command:
+## Parameters
 
-    PLUGIN_POM_PATH=POM_PATH \
-    go run main.go
+| Parameter                                                                                                                      | Choices/<span style="color:blue;">Defaults</span>                  | Comments                                                   |
+| :----------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------- | :--------------------------------------------------------- |
+| chart_name <span style="font-size: 10px"><br/>`string`</span> <span style="color:red; font-size: 10px">`required`</span>       |                                                                    | The name of the chart in Chart.yaml                        |
+| chart_version <span style="font-size: 10px"><br/>`string`</span>                                                               | Defaults: <span style="color:blue;">1.0.0</span>                   | The project version present in Chart.yaml                  |
+| docker_registry <span style="font-size: 10px"><br/>`string`</span>                                                             | Defaults: <span style="color:blue;">registry.hub.docker.com</span> | Docker registry where the packaged chart will be published |
+| chart_path <span style="font-size: 10px"><br/>`string`</span>                                                                  | Defaults: <span style="color:blue;">`./`</span>                    | Directory containing the helm chart                        |
+| docker_username <span style="font-size: 10px"><br/>`string`</span> <span style="color:red; font-size: 10px">`required`</span>  |                                                                    | Docker username to login to the above registry.            |
+| docker_password <span style="font-size: 10px"><br/>`string`</span> <span style="color:red; font-size: 10px">`required`</span>  |                                                                    | Docker PAT to authenticate                                 |
+| docker_namespace <span style="font-size: 10px"><br/>`string`</span> <span style="color:red; font-size: 10px">`required`</span> |                                                                    | Namespace under which the chart will be published          |
 
-Additionally, you can build the Docker image with these commands:
+## Plugin Image
 
-    docker buildx build -t DOCKER_ORG/drone-get-maven-version --platform linux/amd64 .
+The plugin `harnesscommunity/drone-push-helm-chart-docker-registry` is available for the following architectures:
 
-### Usage in Harness CI
+| OS            | Tag             |
+| ------------- | --------------- |
+| linux/amd64   | `linux-amd64`   |
+| linux/arm64   | `linux-arm64`   |
+| windows/amd64 | `windows-amd64` |
 
-Integrating the drone-get-maven-version Plugin into your Harness CI pipeline is seamless. You can use Docker to run the plugin with environment variables. Here's how:
+## Examples
 
-    docker run --rm \
-    -e PLUGIN_POM_PATH=${POM_PATH} \
-    -v $(pwd):$(pwd) \
-    -w $(pwd) \
-    harnesscommunity/drone-get-maven-version
+```
+# Plugin YAML
+- step:
+    type: Plugin
+    name: Push Helm to Docker
+    identifier: Push_Helm_to_Docker
+    spec:
+        connectorRef: harness-docker-connector
+        image: harnesscommunity/drone-helm-chart-docker-registry:linux-amd64
+        settings:
+            chart_name: mywebapp
+            docker_username: <+variable.docker_username>
+            docker_password: <+secrets.getValue("docker_pat")>
+            chart_path: test
+            chart_version: 5.0.0
+            docker_namespace: <+variable.namespace>
+```
 
-In your Harness CI pipeline, you can define the plugin as a step, like this:
-
-    - step:
-        type:  Plugin
-        name:  drone-get-maven-version-plugin
-        identifier:  maven_plugin
-        spec:
-            connectorRef:  docker-registry-connector
-            image:  harnesscommunity/drone-get-maven-version
-            settings:
-                pom_path:  path-to-your-maven-project
-
-### Plugin Options
-
-The drone-get-maven-version plugin offers the following customization option:
-
-- **pom_path**: The path to your Maven project. You should replace ${POM_PATH} with the actual path to your Maven project.
-
-This environment variable is crucial for configuring and customizing the behavior of the drone-get-maven-version plugin when executed as a Docker container.
-
-### Get Started with the drone-get-maven-version Plugin
-
-Whether you are an experienced DevOps professional or new to CI/CD, the drone-get-maven-version plugin can simplify your Docker image creation process. Give it a try and witness how it streamlines your CI/CD pipelines!
-
-For more information, documentation, and updates, please visit our GitHub repository: [drone-get-maven-version](https://github.com/harness-community/drone-get-maven-version).
+> <span style="font-size: 14px; margin-left:5px; background-color: #d3d3d3; padding: 4px; border-radius: 4px;">ℹ️ If you notice any issues in this documentation, you can [edit this document](https://github.com/harness-community/drone-push-helm-chart-docker-registry/blob/main/README.md) to improve it.</span>
