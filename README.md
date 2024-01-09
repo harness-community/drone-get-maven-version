@@ -1,20 +1,17 @@
 # Introducing the drone-maven-docker-image-builder Plugin
 
-At Harness, we are dedicated to enhancing Continuous Integration (CI) and Continuous Deployment (CD) processes by providing tools that simplify complex workflows. We understand the significance of seamlessly integrating Maven builds with Docker image creation. That's why we are thrilled to introduce the **drone-maven-docker-image-builder** plugin. This plugin streamlines the process of building and pushing Docker images based on Maven projects, enabling you to effortlessly manage versioning and image creation in your CI/CD pipelines.
+At Harness, we are dedicated to enhancing Continuous Integration (CI) and Continuous Deployment (CD) processes by providing tools that simplify complex workflows. We understand the significance of seamlessly integrating Maven builds with Docker image creation. That's why we are thrilled to introduce the **drone-maven-docker-image-builder** plugin. This plugin streamlines the process of accessing the POM Version, enabling you to effortlessly manage versioning and image creation in your CI/CD pipelines.
 
 ### What is the drone-maven-docker-image-builder plugin?
 
-The **drone-maven-docker-image-builder** plugin is a versatile tool designed to simplify the integration of Maven builds with Docker image creation. This plugin automates the process of building and pushing Docker images by leveraging Maven project information, ensuring a smooth and efficient workflow.
+The **drone-maven-docker-image-builder** plugin is a versatile tool designed to simplify the integration of Maven builds with Docker image creation. This plugin automates the process of fetching the POM version in your maven project.
 
 ### Build the Docker Image
 
 Using the plugin is straightforward. You can run the script directly using the following command:
 
     PLUGIN_POM_PATH=POM_PATH \
-    PLUGIN_DOCKER_IMAGE_NAME=DOCKER_IMAGE_NAME \
-    PLUGIN_DOCKER_USERNAME=DOCKER_USERNAME \
-    PLUGIN_DOCKER_PAT=DOCKER_PAT \
-    sh build_and_push_docker_image.sh
+    go run main.go
 
 Additionally, you can build the Docker image with these commands:
 
@@ -26,9 +23,6 @@ Integrating the drone-maven-docker-image-builder Plugin into your Harness CI pip
 
     docker run --rm \
     -e PLUGIN_POM_PATH=${POM_PATH} \
-    -e PLUGIN_DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME} \
-    -e PLUGIN_DOCKER_USERNAME=${DOCKER_USERNAME} \
-    -e PLUGIN_DOCKER_PAT=${DOCKER_PAT}
     -v $(pwd):$(pwd) \
     -w $(pwd) \
     harnesscommunity/maven-docker-image-builder
@@ -44,23 +38,14 @@ In your Harness CI pipeline, you can define the plugin as a step, like this:
             image:  harnesscommunity/drone-maven-docker-image-builder
             settings:
                 pom_path:  path-to-your-maven-project
-                docker_image_name:  your-docker-image-name
-                docker_username: your-docker-username
-                docker_pat: your-docker-pat
 
 ### Plugin Options
 
-The Maven Docker Image Builder Plugin offers the following customization options:
+The Maven Docker Image Builder Plugin offers the following customization option:
 
 - **pom_path**: The path to your Maven project. You should replace ${POM_PATH} with the actual path to your Maven project.
 
-- **docker_image_name**: The name of your Docker image. Replace ${DOCKER_IMAGE_NAME} with your desired image name.
-
-- **docker_username**: Your docker username to log into docker hub registry.
-
-- **docker_pat**: Your docker PAT to authenticate the connection.
-
-These environment variables are crucial for configuring and customizing the behavior of the drone-maven-docker-image-builder plugin when executed as a Docker container. They allow you to provide specific values and project information required for building and tagging your Docker image.
+This environment variable is crucial for configuring and customizing the behavior of the drone-maven-docker-image-builder plugin when executed as a Docker container.
 
 ### Get Started with the Maven Docker Image Builder Plugin
 
