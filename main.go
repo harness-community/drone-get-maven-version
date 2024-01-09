@@ -34,4 +34,19 @@ func main() {
 
 	fmt.Println("POM Version: ", pomVersion)
 	os.Setenv("POM_VERSION", pomVersion)
+
+	outputFile, err := os.OpenFile(os.Getenv("DRONE_OUTPUT"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Println("Error opening output file:", err)
+		os.Exit(1)
+	}
+	defer outputFile.Close()
+
+	_, err = fmt.Fprintf(outputFile, "POM_VERSION=%s\n", pomVersion)
+	if err != nil {
+		fmt.Println("Error writing to output file:", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("POM version written to DRONE_OUTPUT.env file")
 }
