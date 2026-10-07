@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.example</groupId>
+    <artifactId>parent-pom</artifactId>
+    <version>5.0.0</version>
+  </parent>
+  <groupId>${project.parent.groupId}.services</groupId>
+  <artifactId>${service.name}-api</artifactId>
+  <version>${app.version}</version>
+  <properties>
+    <major>1</major>
+    <minor>${major}.7</minor>
+    <app.version>${minor}.3-SNAPSHOT</app.version>
+    <service.name>billing</service.name>
+  </properties>
+</project>
