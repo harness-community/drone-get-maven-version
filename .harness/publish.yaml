@@ -20,6 +20,10 @@ pipeline:
       type: String
       description: Set to true when the builder has no access to a Maven repository for the effective-mode contract check.
       value: <+input>.default(false).allowedValues(false,true)
+    - name: allowTagOverwrite
+      type: String
+      description: Set to true only to replace a broken, never-promoted windows-ltscXXXX-rN image. Skips the existing-tag check.
+      value: <+input>.default(false).allowedValues(false,true)
     - name: windows2019BuilderPool
       type: String
       value: windows-2019
@@ -86,6 +90,9 @@ pipeline:
                       spec:
                         shell: Powershell
                         command: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows-release.ps1 -Ltsc ltsc2019 -Step tag-free
+                      when:
+                        stageStatus: Success
+                        condition: <+pipeline.variables.allowTagOverwrite> != "true"
                   - step:
                       type: Run
                       name: Test and build drone-maven.exe
@@ -156,6 +163,9 @@ pipeline:
                       spec:
                         shell: Powershell
                         command: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows-release.ps1 -Ltsc ltsc2022 -Step tag-free
+                      when:
+                        stageStatus: Success
+                        condition: <+pipeline.variables.allowTagOverwrite> != "true"
                   - step:
                       type: Run
                       name: Test and build drone-maven.exe
@@ -226,6 +236,9 @@ pipeline:
                       spec:
                         shell: Powershell
                         command: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows-release.ps1 -Ltsc ltsc2025 -Step tag-free
+                      when:
+                        stageStatus: Success
+                        condition: <+pipeline.variables.allowTagOverwrite> != "true"
                   - step:
                       type: Run
                       name: Test and build drone-maven.exe
