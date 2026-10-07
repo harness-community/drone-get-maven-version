@@ -6,8 +6,10 @@ pipeline:
   properties:
     ci:
       codebase:
-        repoName: drone-get-maven-version
+        connectorRef: GitHub_Harness_Community_Org
+        repoName: " drone-get-maven-version"
         build: <+input>
+        sparseCheckout: []
   stages:
     - stage:
         name: Validate source
