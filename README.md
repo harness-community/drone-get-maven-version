@@ -67,6 +67,7 @@ Windows images:
 - `-rN` tags (`windows-ltsc2022-r1`, `-r2`, ...) are immutable releases and are never overwritten. Pin one for reproducible pipelines. The tag without `-rN` moves to the latest promoted release of that LTSC.
 - The images are built on `harness/ci-base` for the matching LTSC, pinned by digest, and include Git from the base. Maven and a Temurin 17 JRE are installed for `effective` mode (`JAVA_HOME=C:\tools\java`, `MAVEN_HOME=C:\tools\maven`). `raw_gav` uses neither.
 - `effective` mode downloads `maven-help-plugin` from your configured Maven repositories at run time, as before. `raw_gav` needs no network access.
+- On Kubernetes Windows nodes, Java sizes its heap from the node's memory, not the container limit. If `effective` mode fails with "insufficient memory for the Java Runtime Environment" or "paging file is too small", raise the step memory limit (for example `resources: limits: memory: 2Gi`). `raw_gav` does not start Java.
 
 ## Examples
 

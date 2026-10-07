@@ -79,6 +79,9 @@ pipeline:
                       identifier: image_contract
                       timeout: 60m
                       spec:
+                        resources:
+                          limits:
+                            memory: 2Gi
                         connectorRef: <+pipeline.variables.dockerConnector>
                         image: <+pipeline.variables.windows2019Image>
                         shell: Powershell
@@ -91,6 +94,9 @@ pipeline:
                       identifier: legacy_pom_path
                       timeout: 60m
                       spec:
+                        resources:
+                          limits:
+                            memory: 2Gi
                         connectorRef: <+pipeline.variables.dockerConnector>
                         image: <+pipeline.variables.windows2019Image>
                         settings:
@@ -165,6 +171,9 @@ pipeline:
                       identifier: image_contract
                       timeout: 60m
                       spec:
+                        resources:
+                          limits:
+                            memory: 2Gi
                         connectorRef: <+pipeline.variables.dockerConnector>
                         image: <+pipeline.variables.windows2022Image>
                         shell: Powershell
@@ -177,6 +186,9 @@ pipeline:
                       identifier: legacy_pom_path
                       timeout: 60m
                       spec:
+                        resources:
+                          limits:
+                            memory: 2Gi
                         connectorRef: <+pipeline.variables.dockerConnector>
                         image: <+pipeline.variables.windows2022Image>
                         settings:
@@ -251,6 +263,9 @@ pipeline:
                       identifier: image_contract
                       timeout: 60m
                       spec:
+                        resources:
+                          limits:
+                            memory: 2Gi
                         connectorRef: <+pipeline.variables.dockerConnector>
                         image: <+pipeline.variables.windows2025Image>
                         shell: Powershell
@@ -263,6 +278,9 @@ pipeline:
                       identifier: legacy_pom_path
                       timeout: 60m
                       spec:
+                        resources:
+                          limits:
+                            memory: 2Gi
                         connectorRef: <+pipeline.variables.dockerConnector>
                         image: <+pipeline.variables.windows2025Image>
                         settings:
