@@ -21,9 +21,10 @@ RUN New-Item -ItemType Directory -Force -Path $env:TEMP | Out-Null
 RUN Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
 
 # Maven and a JRE (enough for mvn help:evaluate), unpinned as before. The
-# package folders carry the version in their name, so expose them through
-# fixed junctions that ENV can point at. choco is called by full path because
-# ci-base fixes PATH through ENV, which hides the PATH change Chocolatey made.
+# package folders carry the version in their name, so move them to fixed paths
+# that ENV can point at; junctions do not survive the layer commit on Windows.
+# choco is called by full path because ci-base fixes PATH through ENV, which
+# hides the PATH change Chocolatey made.
 RUN $choco = 'C:\ProgramData\chocolatey\bin\choco.exe'; `
     foreach ($pkg in 'maven', 'temurin17jre') { `
         & $choco install $pkg -y --no-progress; `
@@ -35,18 +36,19 @@ RUN $choco = 'C:\ProgramData\chocolatey\bin\choco.exe'; `
         Where-Object { $_.FullName -match 'Adoptium|Temurin' } | Select-Object -First 1; `
     if (-not $java) { throw 'java.exe from the Temurin JRE not found under Program Files' }; `
     New-Item -ItemType Directory -Force -Path C:\tools | Out-Null; `
-    New-Item -ItemType Junction -Path C:\tools\maven -Target $mvn[0].FullName | Out-Null; `
-    New-Item -ItemType Junction -Path C:\tools\java -Target $java.Directory.Parent.FullName | Out-Null; `
-    $env:JAVA_HOME = 'C:\tools\java'; `
-    & C:\tools\java\bin\java.exe -version; `
-    if ($LASTEXITCODE -ne 0) { throw 'java -version failed' }; `
-    & C:\tools\maven\bin\mvn.cmd --version; `
-    if ($LASTEXITCODE -ne 0) { throw 'mvn --version failed' }; `
+    Move-Item $mvn[0].FullName C:\tools\maven; `
+    Move-Item $java.Directory.Parent.FullName C:\tools\java; `
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "$env:TEMP\*", C:\Windows\Temp\*, C:\ProgramData\chocolatey\logs
 
 ENV JAVA_HOME=C:\tools\java `
     MAVEN_HOME=C:\tools\maven `
     PATH="C:\tools\maven\bin;C:\tools\java\bin;${PATH}"
+
+# Checked in its own layer so a path that does not survive the commit fails the build.
+RUN java -version; `
+    if ($LASTEXITCODE -ne 0) { throw 'java -version failed' }; `
+    mvn --version; `
+    if ($LASTEXITCODE -ne 0) { throw 'mvn --version failed' }
 
 WORKDIR C:\app
 COPY release/windows/amd64/drone-maven.exe C:/app/drone-maven.exe
