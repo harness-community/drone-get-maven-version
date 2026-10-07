@@ -65,7 +65,7 @@ pipeline:
                   identifier: move_moving_tags
                   timeout: 30m
                   spec:
-                    connectorRef: account.harnessImage
+                    connectorRef: Harness_Community
                     image: alpine:3.22
                     shell: Sh
                     envVariables:
