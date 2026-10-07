@@ -1,0 +1,160 @@
+pipeline:
+  name: Maven POM Parser - Windows Kubernetes Qualification
+  identifier: maven_pom_qualify
+  projectIdentifier: Drone_Plugins
+  orgIdentifier: default
+  description: Runs the image contract inside each published Windows image on a KubernetesDirect worker whose Windows build matches the LTSC. Pass the image by digest (repo@sha256:...) so a run can only qualify what was published. This is the release gate for promotion. Leave an LTSC stage out of the run by qualifying it separately; the three LTSCs may sit at different rN.
+  properties:
+    ci:
+      codebase:
+        repoName: drone-get-maven-version
+        build: <+input>
+  variables:
+    - name: dockerConnector
+      type: String
+      description: Docker Hub connector used to pull the candidates.
+      value: <+input>
+    - name: namespace
+      type: String
+      value: <+input>
+    - name: skipEffective
+      type: String
+      description: Set to true only when the cluster has no route to a Maven repository. Record that limitation with the qualification result.
+      value: <+input>.default(false).allowedValues(false,true)
+    - name: windows2019Connector
+      type: String
+      description: Kubernetes connector for the cluster with Windows LTSC 2019 nodes.
+      value: <+input>
+    - name: windows2022Connector
+      type: String
+      description: Kubernetes connector for the cluster with Windows LTSC 2022 nodes.
+      value: <+input>
+    - name: windows2025Connector
+      type: String
+      description: Kubernetes connector for the cluster with Windows LTSC 2025 nodes.
+      value: <+input>
+    - name: windows2019Candidate
+      type: String
+      description: "harnesscommunity/drone-get-maven-version@sha256:<digest> of the windows-ltsc2019-rN image."
+      value: <+input>
+    - name: windows2022Candidate
+      type: String
+      description: "harnesscommunity/drone-get-maven-version@sha256:<digest> of the windows-ltsc2022-rN image."
+      value: <+input>
+    - name: windows2025Candidate
+      type: String
+      description: "harnesscommunity/drone-get-maven-version@sha256:<digest> of the windows-ltsc2025-rN image."
+      value: <+input>
+  stages:
+    - parallel:
+        - stage:
+            name: Qualify Windows LTSC 2019
+            identifier: qualify_windows_ltsc2019
+            type: CI
+            spec:
+              cloneCodebase: true
+              infrastructure:
+                type: KubernetesDirect
+                spec:
+                  connectorRef: <+pipeline.variables.windows2019Connector>
+                  namespace: <+pipeline.variables.namespace>
+                  os: Windows
+                  automountServiceAccountToken: true
+                  nodeSelector:
+                    kubernetes.io/os: windows
+                    node.kubernetes.io/windows-build: "10.0.17763"
+                  tolerations:
+                    - effect: NoSchedule
+                      key: node.kubernetes.io/os
+                      operator: Equal
+                      value: windows
+              execution:
+                steps:
+                  - step:
+                      type: Run
+                      name: Image contract
+                      identifier: image_contract
+                      timeout: 60m
+                      spec:
+                        connectorRef: <+pipeline.variables.dockerConnector>
+                        image: <+pipeline.variables.windows2019Candidate>
+                        shell: Powershell
+                        command: |-
+                          $extra = @()
+                          if ('<+pipeline.variables.skipEffective>' -eq 'true') { $extra += '-SkipEffective' }
+                          powershell -NoProfile -ExecutionPolicy Bypass -File tests/contracts/Test-ImageContract.ps1 -ExpectedBuild 17763 @extra
+                          exit $LASTEXITCODE
+        - stage:
+            name: Qualify Windows LTSC 2022
+            identifier: qualify_windows_ltsc2022
+            type: CI
+            spec:
+              cloneCodebase: true
+              infrastructure:
+                type: KubernetesDirect
+                spec:
+                  connectorRef: <+pipeline.variables.windows2022Connector>
+                  namespace: <+pipeline.variables.namespace>
+                  os: Windows
+                  automountServiceAccountToken: true
+                  nodeSelector:
+                    kubernetes.io/os: windows
+                    node.kubernetes.io/windows-build: "10.0.20348"
+                  tolerations:
+                    - effect: NoSchedule
+                      key: node.kubernetes.io/os
+                      operator: Equal
+                      value: windows
+              execution:
+                steps:
+                  - step:
+                      type: Run
+                      name: Image contract
+                      identifier: image_contract
+                      timeout: 60m
+                      spec:
+                        connectorRef: <+pipeline.variables.dockerConnector>
+                        image: <+pipeline.variables.windows2022Candidate>
+                        shell: Powershell
+                        command: |-
+                          $extra = @()
+                          if ('<+pipeline.variables.skipEffective>' -eq 'true') { $extra += '-SkipEffective' }
+                          powershell -NoProfile -ExecutionPolicy Bypass -File tests/contracts/Test-ImageContract.ps1 -ExpectedBuild 20348 @extra
+                          exit $LASTEXITCODE
+        - stage:
+            name: Qualify Windows LTSC 2025
+            identifier: qualify_windows_ltsc2025
+            type: CI
+            spec:
+              cloneCodebase: true
+              infrastructure:
+                type: KubernetesDirect
+                spec:
+                  connectorRef: <+pipeline.variables.windows2025Connector>
+                  namespace: <+pipeline.variables.namespace>
+                  os: Windows
+                  automountServiceAccountToken: true
+                  nodeSelector:
+                    kubernetes.io/os: windows
+                    node.kubernetes.io/windows-build: "10.0.26100"
+                  tolerations:
+                    - effect: NoSchedule
+                      key: node.kubernetes.io/os
+                      operator: Equal
+                      value: windows
+              execution:
+                steps:
+                  - step:
+                      type: Run
+                      name: Image contract
+                      identifier: image_contract
+                      timeout: 60m
+                      spec:
+                        connectorRef: <+pipeline.variables.dockerConnector>
+                        image: <+pipeline.variables.windows2025Candidate>
+                        shell: Powershell
+                        command: |-
+                          $extra = @()
+                          if ('<+pipeline.variables.skipEffective>' -eq 'true') { $extra += '-SkipEffective' }
+                          powershell -NoProfile -ExecutionPolicy Bypass -File tests/contracts/Test-ImageContract.ps1 -ExpectedBuild 26100 @extra
+                          exit $LASTEXITCODE
