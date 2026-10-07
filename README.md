@@ -133,7 +133,7 @@ Release pipelines live in `.harness/` (same layout as `node-ci-images`):
 | :-- | :-- |
 | `validate.yaml` | `gofmt`, `go vet`, unit tests, binary builds, release gate (`scripts/check-release.sh`), secret scan. |
 | `publish.yaml` | Per LTSC, on the `windows-2019` / `windows-2022` / `windows-2025` pool: checks the host build, refuses an existing tag, tests and builds `drone-maven.exe`, pushes only the immutable `windows-ltscXXXX-rN` tag, then runs `tests/contracts/Test-ImageContract.ps1` against the pushed image. |
-| `qualify.yaml` | Runs the same contract inside the image on a `KubernetesDirect` Windows node whose build matches the LTSC. |
+| `qualify.yaml` | Per LTSC, on a `KubernetesDirect` Windows node with the matching build (`gcopdmwindowsbuildfarm` for 2019/2022, `gcopdmwindows2025` for 2025): runs the image contract, then runs the image as a Plugin step with only `pom_path` (backward compatibility) and as the Bamboo replacement (`pom_file`, `variable_prefix: maven`, `mode: raw_gav`, fixtures in `tests/qualify/`), and checks the step output variables. |
 | `promote.yaml` | Moves `windows-ltscXXXX` (and, on request, the legacy `windows-amd64`) to a qualified digest with `crane`, without rebuilding. |
 
 To release a changed image, bump `IMAGE_VERSION` in its `docker/Dockerfile.windows.amd64.ltscXXXX` and the tag in `.harness/publish.yaml` to the next `-rN`. The release gate fails if the two disagree, and publishing refuses to overwrite an existing `-rN`.

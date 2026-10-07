@@ -1,50 +1,53 @@
 pipeline:
-  name: Maven POM Parser - Windows Kubernetes Qualification
+  name: Maven POM Parser - Qualify Windows Images
   identifier: maven_pom_qualify
   projectIdentifier: Drone_Plugins
   orgIdentifier: default
-  description: Runs the image contract inside each published Windows image on a KubernetesDirect worker whose Windows build matches the LTSC. Pass the image by digest (repo@sha256:...) so a run can only qualify what was published. This is the release gate for promotion. Leave an LTSC stage out of the run by qualifying it separately; the three LTSCs may sit at different rN.
+  description: Qualifies published Windows images on KubernetesDirect Windows nodes whose build matches each LTSC. Runs the image contract, then uses the image as a Harness Plugin step twice, once with only pom_path (backward compatibility) and once as the Bamboo maven-pom-parser replacement (pom_file, variable_prefix maven, mode raw_gav), and checks the step output variables. Pass the images by digest (repo@sha256:...) when the result gates promotion.
   properties:
     ci:
       codebase:
+        connectorRef: GitHub_Harness_Community_Org
         repoName: drone-get-maven-version
         build: <+input>
   variables:
     - name: dockerConnector
       type: String
-      description: Docker Hub connector used to pull the candidates.
-      value: <+input>
-    - name: namespace
+      description: Docker Hub connector used to pull the images under test.
+      value: <+input>.default(Harness_Community)
+    - name: windows2019Image
       type: String
-      value: <+input>
-    - name: skipEffective
+      description: Image under test for LTSC 2019.
+      value: <+input>.default(harnesscommunity/drone-get-maven-version:windows-ltsc2019-r1)
+    - name: windows2022Image
       type: String
-      description: Set to true only when the cluster has no route to a Maven repository. Record that limitation with the qualification result.
-      value: <+input>.default(false).allowedValues(false,true)
+      description: Image under test for LTSC 2022.
+      value: <+input>.default(harnesscommunity/drone-get-maven-version:windows-ltsc2022-r1)
+    - name: windows2025Image
+      type: String
+      description: Image under test for LTSC 2025.
+      value: <+input>.default(harnesscommunity/drone-get-maven-version:windows-ltsc2025-r1)
     - name: windows2019Connector
       type: String
-      description: Kubernetes connector for the cluster with Windows LTSC 2019 nodes.
-      value: <+input>
+      description: Kubernetes cluster carrying Windows LTSC 2019 worker nodes.
+      value: <+input>.default(gcopdmwindowsbuildfarm)
+    - name: windows2019Namespace
+      type: String
+      value: <+input>.default(harness-delegate-ng)
     - name: windows2022Connector
       type: String
-      description: Kubernetes connector for the cluster with Windows LTSC 2022 nodes.
-      value: <+input>
+      description: Kubernetes cluster carrying Windows LTSC 2022 worker nodes.
+      value: <+input>.default(gcopdmwindowsbuildfarm)
+    - name: windows2022Namespace
+      type: String
+      value: <+input>.default(harness-delegate-ng)
     - name: windows2025Connector
       type: String
-      description: Kubernetes connector for the cluster with Windows LTSC 2025 nodes.
-      value: <+input>
-    - name: windows2019Candidate
+      description: Kubernetes cluster carrying Windows LTSC 2025 worker nodes.
+      value: <+input>.default(gcopdmwindows2025)
+    - name: windows2025Namespace
       type: String
-      description: "harnesscommunity/drone-get-maven-version@sha256:<digest> of the windows-ltsc2019-rN image."
-      value: <+input>
-    - name: windows2022Candidate
-      type: String
-      description: "harnesscommunity/drone-get-maven-version@sha256:<digest> of the windows-ltsc2022-rN image."
-      value: <+input>
-    - name: windows2025Candidate
-      type: String
-      description: "harnesscommunity/drone-get-maven-version@sha256:<digest> of the windows-ltsc2025-rN image."
-      value: <+input>
+      value: <+input>.default(harness-delegate-ng)
   stages:
     - parallel:
         - stage:
@@ -57,7 +60,7 @@ pipeline:
                 type: KubernetesDirect
                 spec:
                   connectorRef: <+pipeline.variables.windows2019Connector>
-                  namespace: <+pipeline.variables.namespace>
+                  namespace: <+pipeline.variables.windows2019Namespace>
                   os: Windows
                   automountServiceAccountToken: true
                   nodeSelector:
@@ -77,13 +80,62 @@ pipeline:
                       timeout: 60m
                       spec:
                         connectorRef: <+pipeline.variables.dockerConnector>
-                        image: <+pipeline.variables.windows2019Candidate>
+                        image: <+pipeline.variables.windows2019Image>
                         shell: Powershell
                         command: |-
-                          $extra = @()
-                          if ('<+pipeline.variables.skipEffective>' -eq 'true') { $extra += '-SkipEffective' }
-                          powershell -NoProfile -ExecutionPolicy Bypass -File tests/contracts/Test-ImageContract.ps1 -ExpectedBuild 17763 @extra
+                          powershell -NoProfile -ExecutionPolicy Bypass -File tests/contracts/Test-ImageContract.ps1 -ExpectedBuild 17763
                           exit $LASTEXITCODE
+                  - step:
+                      type: Plugin
+                      name: Legacy pom_path only
+                      identifier: legacy_pom_path
+                      timeout: 60m
+                      spec:
+                        connectorRef: <+pipeline.variables.dockerConnector>
+                        image: <+pipeline.variables.windows2019Image>
+                        settings:
+                          pom_path: tests/qualify/legacy app
+                  - step:
+                      type: Plugin
+                      name: Bamboo maven-pom-parser replacement
+                      identifier: bamboo_raw_gav
+                      timeout: 60m
+                      spec:
+                        connectorRef: <+pipeline.variables.dockerConnector>
+                        image: <+pipeline.variables.windows2019Image>
+                        settings:
+                          pom_file: tests/qualify/bamboo/service-pom.xml
+                          variable_prefix: maven
+                          mode: raw_gav
+                  - step:
+                      type: Run
+                      name: Check step outputs
+                      identifier: check_outputs
+                      timeout: 60m
+                      spec:
+                        connectorRef: <+pipeline.variables.dockerConnector>
+                        image: <+pipeline.variables.windows2019Image>
+                        shell: Powershell
+                        envVariables:
+                          LEGACY_POM_VERSION: <+execution.steps.legacy_pom_path.output.outputVariables.POM_VERSION>
+                          RAW_GROUP_ID: <+execution.steps.bamboo_raw_gav.output.outputVariables.MAVEN_GROUP_ID>
+                          RAW_ARTIFACT_ID: <+execution.steps.bamboo_raw_gav.output.outputVariables.MAVEN_ARTIFACT_ID>
+                          RAW_VERSION: <+execution.steps.bamboo_raw_gav.output.outputVariables.MAVEN_VERSION>
+                          RAW_POM_VERSION: <+execution.steps.bamboo_raw_gav.output.outputVariables.POM_VERSION>
+                        command: |-
+                          $checks = @(
+                            @('legacy POM_VERSION', $env:LEGACY_POM_VERSION, '1.4.2'),
+                            @('MAVEN_GROUP_ID (from parent)', $env:RAW_GROUP_ID, 'com.elevance.platform'),
+                            @('MAVEN_ARTIFACT_ID', $env:RAW_ARTIFACT_ID, 'claims-service'),
+                            @('MAVEN_VERSION (from property)', $env:RAW_VERSION, '2.3.4'),
+                            @('POM_VERSION in raw_gav', $env:RAW_POM_VERSION, '2.3.4')
+                          )
+                          $failed = 0
+                          foreach ($c in $checks) {
+                            if ($c[1] -ceq $c[2]) { Write-Host "PASS  $($c[0]) = $($c[1])" }
+                            else { Write-Host "FAIL  $($c[0]): got '$($c[1])', want '$($c[2])'"; $failed++ }
+                          }
+                          if ($failed) { exit 1 }
         - stage:
             name: Qualify Windows LTSC 2022
             identifier: qualify_windows_ltsc2022
@@ -94,7 +146,7 @@ pipeline:
                 type: KubernetesDirect
                 spec:
                   connectorRef: <+pipeline.variables.windows2022Connector>
-                  namespace: <+pipeline.variables.namespace>
+                  namespace: <+pipeline.variables.windows2022Namespace>
                   os: Windows
                   automountServiceAccountToken: true
                   nodeSelector:
@@ -114,13 +166,62 @@ pipeline:
                       timeout: 60m
                       spec:
                         connectorRef: <+pipeline.variables.dockerConnector>
-                        image: <+pipeline.variables.windows2022Candidate>
+                        image: <+pipeline.variables.windows2022Image>
                         shell: Powershell
                         command: |-
-                          $extra = @()
-                          if ('<+pipeline.variables.skipEffective>' -eq 'true') { $extra += '-SkipEffective' }
-                          powershell -NoProfile -ExecutionPolicy Bypass -File tests/contracts/Test-ImageContract.ps1 -ExpectedBuild 20348 @extra
+                          powershell -NoProfile -ExecutionPolicy Bypass -File tests/contracts/Test-ImageContract.ps1 -ExpectedBuild 20348
                           exit $LASTEXITCODE
+                  - step:
+                      type: Plugin
+                      name: Legacy pom_path only
+                      identifier: legacy_pom_path
+                      timeout: 60m
+                      spec:
+                        connectorRef: <+pipeline.variables.dockerConnector>
+                        image: <+pipeline.variables.windows2022Image>
+                        settings:
+                          pom_path: tests/qualify/legacy app
+                  - step:
+                      type: Plugin
+                      name: Bamboo maven-pom-parser replacement
+                      identifier: bamboo_raw_gav
+                      timeout: 60m
+                      spec:
+                        connectorRef: <+pipeline.variables.dockerConnector>
+                        image: <+pipeline.variables.windows2022Image>
+                        settings:
+                          pom_file: tests/qualify/bamboo/service-pom.xml
+                          variable_prefix: maven
+                          mode: raw_gav
+                  - step:
+                      type: Run
+                      name: Check step outputs
+                      identifier: check_outputs
+                      timeout: 60m
+                      spec:
+                        connectorRef: <+pipeline.variables.dockerConnector>
+                        image: <+pipeline.variables.windows2022Image>
+                        shell: Powershell
+                        envVariables:
+                          LEGACY_POM_VERSION: <+execution.steps.legacy_pom_path.output.outputVariables.POM_VERSION>
+                          RAW_GROUP_ID: <+execution.steps.bamboo_raw_gav.output.outputVariables.MAVEN_GROUP_ID>
+                          RAW_ARTIFACT_ID: <+execution.steps.bamboo_raw_gav.output.outputVariables.MAVEN_ARTIFACT_ID>
+                          RAW_VERSION: <+execution.steps.bamboo_raw_gav.output.outputVariables.MAVEN_VERSION>
+                          RAW_POM_VERSION: <+execution.steps.bamboo_raw_gav.output.outputVariables.POM_VERSION>
+                        command: |-
+                          $checks = @(
+                            @('legacy POM_VERSION', $env:LEGACY_POM_VERSION, '1.4.2'),
+                            @('MAVEN_GROUP_ID (from parent)', $env:RAW_GROUP_ID, 'com.elevance.platform'),
+                            @('MAVEN_ARTIFACT_ID', $env:RAW_ARTIFACT_ID, 'claims-service'),
+                            @('MAVEN_VERSION (from property)', $env:RAW_VERSION, '2.3.4'),
+                            @('POM_VERSION in raw_gav', $env:RAW_POM_VERSION, '2.3.4')
+                          )
+                          $failed = 0
+                          foreach ($c in $checks) {
+                            if ($c[1] -ceq $c[2]) { Write-Host "PASS  $($c[0]) = $($c[1])" }
+                            else { Write-Host "FAIL  $($c[0]): got '$($c[1])', want '$($c[2])'"; $failed++ }
+                          }
+                          if ($failed) { exit 1 }
         - stage:
             name: Qualify Windows LTSC 2025
             identifier: qualify_windows_ltsc2025
@@ -131,7 +232,7 @@ pipeline:
                 type: KubernetesDirect
                 spec:
                   connectorRef: <+pipeline.variables.windows2025Connector>
-                  namespace: <+pipeline.variables.namespace>
+                  namespace: <+pipeline.variables.windows2025Namespace>
                   os: Windows
                   automountServiceAccountToken: true
                   nodeSelector:
@@ -151,10 +252,59 @@ pipeline:
                       timeout: 60m
                       spec:
                         connectorRef: <+pipeline.variables.dockerConnector>
-                        image: <+pipeline.variables.windows2025Candidate>
+                        image: <+pipeline.variables.windows2025Image>
                         shell: Powershell
                         command: |-
-                          $extra = @()
-                          if ('<+pipeline.variables.skipEffective>' -eq 'true') { $extra += '-SkipEffective' }
-                          powershell -NoProfile -ExecutionPolicy Bypass -File tests/contracts/Test-ImageContract.ps1 -ExpectedBuild 26100 @extra
+                          powershell -NoProfile -ExecutionPolicy Bypass -File tests/contracts/Test-ImageContract.ps1 -ExpectedBuild 26100
                           exit $LASTEXITCODE
+                  - step:
+                      type: Plugin
+                      name: Legacy pom_path only
+                      identifier: legacy_pom_path
+                      timeout: 60m
+                      spec:
+                        connectorRef: <+pipeline.variables.dockerConnector>
+                        image: <+pipeline.variables.windows2025Image>
+                        settings:
+                          pom_path: tests/qualify/legacy app
+                  - step:
+                      type: Plugin
+                      name: Bamboo maven-pom-parser replacement
+                      identifier: bamboo_raw_gav
+                      timeout: 60m
+                      spec:
+                        connectorRef: <+pipeline.variables.dockerConnector>
+                        image: <+pipeline.variables.windows2025Image>
+                        settings:
+                          pom_file: tests/qualify/bamboo/service-pom.xml
+                          variable_prefix: maven
+                          mode: raw_gav
+                  - step:
+                      type: Run
+                      name: Check step outputs
+                      identifier: check_outputs
+                      timeout: 60m
+                      spec:
+                        connectorRef: <+pipeline.variables.dockerConnector>
+                        image: <+pipeline.variables.windows2025Image>
+                        shell: Powershell
+                        envVariables:
+                          LEGACY_POM_VERSION: <+execution.steps.legacy_pom_path.output.outputVariables.POM_VERSION>
+                          RAW_GROUP_ID: <+execution.steps.bamboo_raw_gav.output.outputVariables.MAVEN_GROUP_ID>
+                          RAW_ARTIFACT_ID: <+execution.steps.bamboo_raw_gav.output.outputVariables.MAVEN_ARTIFACT_ID>
+                          RAW_VERSION: <+execution.steps.bamboo_raw_gav.output.outputVariables.MAVEN_VERSION>
+                          RAW_POM_VERSION: <+execution.steps.bamboo_raw_gav.output.outputVariables.POM_VERSION>
+                        command: |-
+                          $checks = @(
+                            @('legacy POM_VERSION', $env:LEGACY_POM_VERSION, '1.4.2'),
+                            @('MAVEN_GROUP_ID (from parent)', $env:RAW_GROUP_ID, 'com.elevance.platform'),
+                            @('MAVEN_ARTIFACT_ID', $env:RAW_ARTIFACT_ID, 'claims-service'),
+                            @('MAVEN_VERSION (from property)', $env:RAW_VERSION, '2.3.4'),
+                            @('POM_VERSION in raw_gav', $env:RAW_POM_VERSION, '2.3.4')
+                          )
+                          $failed = 0
+                          foreach ($c in $checks) {
+                            if ($c[1] -ceq $c[2]) { Write-Host "PASS  $($c[0]) = $($c[1])" }
+                            else { Write-Host "FAIL  $($c[0]): got '$($c[1])', want '$($c[2])'"; $failed++ }
+                          }
+                          if ($failed) { exit 1 }

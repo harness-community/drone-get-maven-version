@@ -28,7 +28,7 @@ function Check([string]$Name, [scriptblock]$Test) {
 # under 'Stop'; java -version, for one, writes to stderr.
 function Invoke-Native([string]$Exe, [string[]]$Arguments) {
     $ErrorActionPreference = 'Continue'
-    $out = & $Exe @Arguments 2>&1 | Out-String
+    $out = & $Exe @Arguments 2>&1 | ForEach-Object { "$_" } | Out-String
     if ($LASTEXITCODE -ne 0) { throw "$Exe $Arguments exited $LASTEXITCODE`n$out" }
     $out
 }
@@ -43,7 +43,7 @@ function Invoke-Plugin([hashtable]$Settings) {
     $env:DRONE_OUTPUT = $outFile
     $ErrorActionPreference = 'Continue'
     try {
-        $log = & $Plugin 2>&1 | Out-String
+        $log = & $Plugin 2>&1 | ForEach-Object { "$_" } | Out-String
         $code = $LASTEXITCODE
     } finally {
         foreach ($n in ($names + 'DRONE_OUTPUT')) { Remove-Item "Env:$n" -ErrorAction SilentlyContinue }
