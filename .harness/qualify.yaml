@@ -93,6 +93,19 @@ pipeline:
                       name: Legacy pom_path only
                       identifier: legacy_pom_path
                       timeout: 60m
+                      failureStrategies:
+                        - onFailure:
+                            errors:
+                              - AllErrors
+                            action:
+                              type: Retry
+                              spec:
+                                retryCount: 2
+                                retryIntervals:
+                                  - 30s
+                                onRetryFailure:
+                                  action:
+                                    type: MarkAsFailure
                       spec:
                         resources:
                           limits:
@@ -185,6 +198,19 @@ pipeline:
                       name: Legacy pom_path only
                       identifier: legacy_pom_path
                       timeout: 60m
+                      failureStrategies:
+                        - onFailure:
+                            errors:
+                              - AllErrors
+                            action:
+                              type: Retry
+                              spec:
+                                retryCount: 2
+                                retryIntervals:
+                                  - 30s
+                                onRetryFailure:
+                                  action:
+                                    type: MarkAsFailure
                       spec:
                         resources:
                           limits:
@@ -277,6 +303,19 @@ pipeline:
                       name: Legacy pom_path only
                       identifier: legacy_pom_path
                       timeout: 60m
+                      failureStrategies:
+                        - onFailure:
+                            errors:
+                              - AllErrors
+                            action:
+                              type: Retry
+                              spec:
+                                retryCount: 2
+                                retryIntervals:
+                                  - 30s
+                                onRetryFailure:
+                                  action:
+                                    type: MarkAsFailure
                       spec:
                         resources:
                           limits:
