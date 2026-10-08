@@ -111,7 +111,7 @@ pipeline:
                         connectorRef: <+pipeline.variables.dockerConnector>
                         repo: harnesscommunity/drone-get-maven-version
                         tags:
-                          - windows-ltsc2019-r1
+                          - windows-ltsc2019-r2
                         dockerfile: docker/Dockerfile.windows.amd64.ltsc2019
                         context: .
                         buildArgs:
@@ -122,7 +122,7 @@ pipeline:
                       identifier: test_ltsc2019_image
                       spec:
                         connectorRef: <+pipeline.variables.dockerConnector>
-                        image: harnesscommunity/drone-get-maven-version:windows-ltsc2019-r1
+                        image: harnesscommunity/drone-get-maven-version:windows-ltsc2019-r2
                         shell: Powershell
                         command: |-
                           $extra = @()
@@ -184,7 +184,7 @@ pipeline:
                         connectorRef: <+pipeline.variables.dockerConnector>
                         repo: harnesscommunity/drone-get-maven-version
                         tags:
-                          - windows-ltsc2022-r1
+                          - windows-ltsc2022-r2
                         dockerfile: docker/Dockerfile.windows.amd64.ltsc2022
                         context: .
                         buildArgs:
@@ -195,7 +195,7 @@ pipeline:
                       identifier: test_ltsc2022_image
                       spec:
                         connectorRef: <+pipeline.variables.dockerConnector>
-                        image: harnesscommunity/drone-get-maven-version:windows-ltsc2022-r1
+                        image: harnesscommunity/drone-get-maven-version:windows-ltsc2022-r2
                         shell: Powershell
                         command: |-
                           $extra = @()
@@ -257,7 +257,7 @@ pipeline:
                         connectorRef: <+pipeline.variables.dockerConnector>
                         repo: harnesscommunity/drone-get-maven-version
                         tags:
-                          - windows-ltsc2025-r1
+                          - windows-ltsc2025-r2
                         dockerfile: docker/Dockerfile.windows.amd64.ltsc2025
                         context: .
                         buildArgs:
@@ -268,7 +268,7 @@ pipeline:
                       identifier: test_ltsc2025_image
                       spec:
                         connectorRef: <+pipeline.variables.dockerConnector>
-                        image: harnesscommunity/drone-get-maven-version:windows-ltsc2025-r1
+                        image: harnesscommunity/drone-get-maven-version:windows-ltsc2025-r2
                         shell: Powershell
                         command: |-
                           $extra = @()

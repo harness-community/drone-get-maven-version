@@ -21,7 +21,7 @@ func fakeMaven(t *testing.T, stdout, stderr string, err error) *[]string {
 
 func TestEffectiveVersionSuccess(t *testing.T) {
 	args := fakeMaven(t, "  1.2.3-SNAPSHOT\r\n", "", nil)
-	got, err := effectiveVersion("dir/pom.xml")
+	got, err := effectiveVersion("dir/pom.xml", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestEffectiveVersionSuccess(t *testing.T) {
 
 func TestEffectiveVersionFailureIncludesMavenOutput(t *testing.T) {
 	fakeMaven(t, "[ERROR] Non-resolvable parent POM", "picked up JAVA_TOOL_OPTIONS", errors.New("exit status 1"))
-	_, err := effectiveVersion("pom.xml")
+	_, err := effectiveVersion("pom.xml", nil)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -49,7 +49,7 @@ func TestEffectiveVersionFailureIncludesMavenOutput(t *testing.T) {
 
 func TestEffectiveVersionEmptyOutput(t *testing.T) {
 	fakeMaven(t, " \n", "", nil)
-	_, err := effectiveVersion("pom.xml")
+	_, err := effectiveVersion("pom.xml", nil)
 	if err == nil || !strings.Contains(err.Error(), "empty project.version") {
 		t.Fatalf("got %v", err)
 	}

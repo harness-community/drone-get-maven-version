@@ -27,6 +27,10 @@ type Config struct {
 	Mode string
 	// Prefix is the normalized output prefix. Only used in raw_gav mode.
 	Prefix string
+	// MavenProperties are -D style properties from maven_properties. They
+	// are passed to mvn in effective mode and resolve placeholders in
+	// raw_gav mode.
+	MavenProperties map[string]string
 	// OutputFile is the DRONE_OUTPUT file outputs are appended to.
 	OutputFile string
 	// Warnings are non-fatal configuration notes for the user.
@@ -60,6 +64,12 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	default:
 		return cfg, fmt.Errorf("invalid mode %q: use %q or %q", getenv("PLUGIN_MODE"), modeEffective, modeRawGAV)
 	}
+
+	props, err := parseMavenProperties(getenv("PLUGIN_MAVEN_PROPERTIES"))
+	if err != nil {
+		return cfg, err
+	}
+	cfg.MavenProperties = props
 
 	rawPrefix := strings.TrimSpace(getenv("PLUGIN_VARIABLE_PREFIX"))
 	if cfg.Mode != modeRawGAV {

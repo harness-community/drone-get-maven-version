@@ -28,8 +28,13 @@ var runMaven = func(args ...string) (stdout, stderr []byte, err error) {
 }
 
 // effectiveVersion asks Maven for the effective project.version of pomFile.
-func effectiveVersion(pomFile string) (string, error) {
-	stdout, stderr, err := runMaven("-f", pomFile, "help:evaluate", "-Dexpression=project.version", "-q", "-DforceStdout")
+// props are passed as -Dkey=value; Maven reads .mvn/maven.config itself.
+func effectiveVersion(pomFile string, props map[string]string) (string, error) {
+	args := []string{"-f", pomFile, "help:evaluate", "-Dexpression=project.version", "-q", "-DforceStdout"}
+	for _, k := range sortedKeys(props) {
+		args = append(args, "-D"+k+"="+props[k])
+	}
+	stdout, stderr, err := runMaven(args...)
 	if err != nil {
 		msg := fmt.Sprintf("mvn help:evaluate failed for %s (effective mode): %v", pomFile, err)
 		// With -q Maven reports build errors on stdout, so include both.

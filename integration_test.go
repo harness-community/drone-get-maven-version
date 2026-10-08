@@ -12,7 +12,7 @@ import (
 // Needs mvn on PATH and access to a repository serving maven-help-plugin.
 
 func TestIntegrationEffectiveInheritance(t *testing.T) {
-	got, err := effectiveVersion(filepath.Join("testdata", "inheritance", "child", "pom.xml"))
+	got, err := effectiveVersion(filepath.Join("testdata", "inheritance", "child", "pom.xml"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,9 +42,39 @@ func TestIntegrationPomPathOnly(t *testing.T) {
 	}
 }
 
+// raw_gav must agree with Maven on -D, .mvn/maven.config, <properties> and
+// parent-POM precedence.
+func TestIntegrationRawGAVMatchesMavenCIFriendly(t *testing.T) {
+	pom := filepath.Join("testdata", "cifriendly", "service", "pom.xml")
+	for _, tt := range []struct {
+		props map[string]string
+		want  string
+	}{
+		{nil, "5.6.7-SNAPSHOT"},
+		{map[string]string{"changelist": ""}, "5.6.7"},
+		{map[string]string{"revision": "1.0.0", "changelist": "-RC1"}, "1.0.0-RC1"},
+	} {
+		effective, err := effectiveVersion(pom, tt.props)
+		if err != nil {
+			t.Fatal(err)
+		}
+		userProps, err := loadUserProperties(pom, tt.props, discard)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, err := readRawGAV(pom, userProps, discard)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if effective != tt.want || raw.Version != tt.want {
+			t.Errorf("props %v: effective %q, raw_gav %q, want %q", tt.props, effective, raw.Version, tt.want)
+		}
+	}
+}
+
 func TestIntegrationEffectiveFailureShowsMavenError(t *testing.T) {
 	pom := writePOM(t, project(`<artifactId>a</artifactId>`))
-	_, err := effectiveVersion(pom)
+	_, err := effectiveVersion(pom, nil)
 	if err == nil {
 		t.Fatal("expected Maven to fail on a POM without groupId and version")
 	}

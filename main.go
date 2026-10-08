@@ -34,9 +34,15 @@ func run(getenv func(string) string, stdout, stderr io.Writer) int {
 	var outputs []Output
 	switch cfg.Mode {
 	case modeRawGAV:
-		gav, err := readRawGAV(cfg.PomFile, func(format string, args ...any) {
+		logf := func(format string, args ...any) {
 			fmt.Fprintf(stdout, format+"\n", args...)
-		})
+		}
+		userProps, err := loadUserProperties(cfg.PomFile, cfg.MavenProperties, logf)
+		if err != nil {
+			fmt.Fprintln(stderr, "Error:", err)
+			return 1
+		}
+		gav, err := readRawGAV(cfg.PomFile, userProps, logf)
 		if err != nil {
 			fmt.Fprintln(stderr, "Error:", err)
 			return 1
@@ -49,7 +55,7 @@ func run(getenv func(string) string, stdout, stderr io.Writer) int {
 			{"POM_VERSION", gav.Version},
 		}
 	default:
-		v, err := effectiveVersion(cfg.PomFile)
+		v, err := effectiveVersion(cfg.PomFile, cfg.MavenProperties)
 		if err != nil {
 			fmt.Fprintln(stderr, "Error:", err)
 			return 1

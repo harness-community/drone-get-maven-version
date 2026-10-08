@@ -169,7 +169,7 @@ func TestReadRawGAV(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			path := writePOM(t, tt.pom)
 			var logs []string
-			got, err := readRawGAV(path, func(format string, args ...any) {
+			got, err := readRawGAV(path, nil, func(format string, args ...any) {
 				logs = append(logs, format)
 			})
 			if tt.wantErr != "" {
@@ -199,7 +199,7 @@ func TestReadRawGAV(t *testing.T) {
 
 func TestReadRawGAVUnresolvedSuggestsEffective(t *testing.T) {
 	path := writePOM(t, project(`<groupId>g</groupId><artifactId>a</artifactId><version>${revision}</version>`))
-	_, err := readRawGAV(path, discard)
+	_, err := readRawGAV(path, nil, discard)
 	if err == nil || !strings.Contains(err.Error(), "mode: effective") {
 		t.Fatalf("expected a hint to use mode: effective, got %v", err)
 	}
@@ -214,10 +214,12 @@ func TestReadRawGAVFixtures(t *testing.T) {
 		{"leak.xml", GAV{"com.example.parent", "leak-guard", "3.0.0"}},
 		{"properties.xml", GAV{"com.example.services", "billing-api", "1.7.3-SNAPSHOT"}},
 		{filepath.Join("inheritance", "child", "pom.xml"), GAV{"com.example.inherit", "inherit-child", "1.2.3-SNAPSHOT"}},
+		// readRawGAV does not read .mvn/maven.config; loadUserProperties does.
+		{filepath.Join("cifriendly", "pom.xml"), GAV{"com.example.cifriendly", "cifriendly-parent", "0.0.0"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {
-			got, err := readRawGAV(filepath.Join("testdata", tt.file), discard)
+			got, err := readRawGAV(filepath.Join("testdata", tt.file), nil, discard)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -231,12 +233,12 @@ func TestReadRawGAVFixtures(t *testing.T) {
 func TestReadRawGAVFileErrors(t *testing.T) {
 	dir := t.TempDir()
 
-	_, err := readRawGAV(filepath.Join(dir, "missing.xml"), discard)
+	_, err := readRawGAV(filepath.Join(dir, "missing.xml"), nil, discard)
 	if err == nil || !strings.Contains(err.Error(), "missing.xml") {
 		t.Errorf("missing file: got %v", err)
 	}
 
-	_, err = readRawGAV(dir, discard)
+	_, err = readRawGAV(dir, nil, discard)
 	if err == nil || !strings.Contains(err.Error(), "is a directory") {
 		t.Errorf("directory: got %v", err)
 	}
@@ -251,7 +253,7 @@ func TestReadRawGAVPathWithSpaces(t *testing.T) {
 	if err := os.WriteFile(path, []byte(project(`<groupId>g</groupId><artifactId>a</artifactId><version>1</version>`)), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	got, err := readRawGAV(path, discard)
+	got, err := readRawGAV(path, nil, discard)
 	if err != nil {
 		t.Fatal(err)
 	}

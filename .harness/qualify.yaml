@@ -3,7 +3,7 @@ pipeline:
   identifier: maven_pom_qualify
   projectIdentifier: Drone_Plugins
   orgIdentifier: default
-  description: Qualifies published Windows images on KubernetesDirect Windows nodes whose build matches each LTSC. Runs the image contract, then uses the image as a Harness Plugin step twice, once with only pom_path (backward compatibility) and once as the Bamboo maven-pom-parser replacement (pom_file, variable_prefix maven, mode raw_gav), and checks the step output variables. Pass the images by digest (repo@sha256:...) when the result gates promotion.
+  description: Qualifies published Windows images on KubernetesDirect Windows nodes whose build matches each LTSC. Runs the image contract, then uses the image as a Harness Plugin step, once with only pom_path (backward compatibility) and once as the Bamboo maven-pom-parser replacement (pom_file, variable_prefix maven, mode raw_gav), plus a CI-friendly ${revision} case read from a parent POM, .mvn/maven.config and maven_properties, and checks the step output variables. Pass the images by digest (repo@sha256:...) when the result gates promotion.
   properties:
     ci:
       codebase:
@@ -18,15 +18,15 @@ pipeline:
     - name: windows2019Image
       type: String
       description: Image under test for LTSC 2019.
-      value: <+input>.default(harnesscommunity/drone-get-maven-version:windows-ltsc2019-r1)
+      value: <+input>.default(harnesscommunity/drone-get-maven-version:windows-ltsc2019-r2)
     - name: windows2022Image
       type: String
       description: Image under test for LTSC 2022.
-      value: <+input>.default(harnesscommunity/drone-get-maven-version:windows-ltsc2022-r1)
+      value: <+input>.default(harnesscommunity/drone-get-maven-version:windows-ltsc2022-r2)
     - name: windows2025Image
       type: String
       description: Image under test for LTSC 2025.
-      value: <+input>.default(harnesscommunity/drone-get-maven-version:windows-ltsc2025-r1)
+      value: <+input>.default(harnesscommunity/drone-get-maven-version:windows-ltsc2025-r2)
     - name: windows2019Connector
       type: String
       description: Kubernetes cluster carrying Windows LTSC 2019 worker nodes.
@@ -127,6 +127,19 @@ pipeline:
                           variable_prefix: maven
                           mode: raw_gav
                   - step:
+                      type: Plugin
+                      name: CI-friendly revision from parent and -D
+                      identifier: revision_raw_gav
+                      timeout: 60m
+                      spec:
+                        connectorRef: <+pipeline.variables.dockerConnector>
+                        image: <+pipeline.variables.windows2019Image>
+                        settings:
+                          pom_file: tests/qualify/revision/service/pom.xml
+                          variable_prefix: maven
+                          mode: raw_gav
+                          maven_properties: changelist=-RC1
+                  - step:
                       type: Run
                       name: Check step outputs
                       identifier: check_outputs
@@ -141,13 +154,17 @@ pipeline:
                           RAW_ARTIFACT_ID: <+execution.steps.bamboo_raw_gav.output.outputVariables.MAVEN_ARTIFACT_ID>
                           RAW_VERSION: <+execution.steps.bamboo_raw_gav.output.outputVariables.MAVEN_VERSION>
                           RAW_POM_VERSION: <+execution.steps.bamboo_raw_gav.output.outputVariables.POM_VERSION>
+                          REV_GROUP_ID: <+execution.steps.revision_raw_gav.output.outputVariables.MAVEN_GROUP_ID>
+                          REV_VERSION: <+execution.steps.revision_raw_gav.output.outputVariables.MAVEN_VERSION>
                         command: |-
                           $checks = @(
                             @('legacy POM_VERSION', $env:LEGACY_POM_VERSION, '1.4.2'),
                             @('MAVEN_GROUP_ID (from parent)', $env:RAW_GROUP_ID, 'com.elevance.platform'),
                             @('MAVEN_ARTIFACT_ID', $env:RAW_ARTIFACT_ID, 'claims-service'),
                             @('MAVEN_VERSION (from property)', $env:RAW_VERSION, '2.3.4'),
-                            @('POM_VERSION in raw_gav', $env:RAW_POM_VERSION, '2.3.4')
+                            @('POM_VERSION in raw_gav', $env:RAW_POM_VERSION, '2.3.4'),
+                            @('MAVEN_GROUP_ID (CI-friendly parent)', $env:REV_GROUP_ID, 'com.elevance.gbd'),
+                            @('MAVEN_VERSION (maven.config + maven_properties)', $env:REV_VERSION, '3.1.0-RC1')
                           )
                           $failed = 0
                           foreach ($c in $checks) {
@@ -232,6 +249,19 @@ pipeline:
                           variable_prefix: maven
                           mode: raw_gav
                   - step:
+                      type: Plugin
+                      name: CI-friendly revision from parent and -D
+                      identifier: revision_raw_gav
+                      timeout: 60m
+                      spec:
+                        connectorRef: <+pipeline.variables.dockerConnector>
+                        image: <+pipeline.variables.windows2022Image>
+                        settings:
+                          pom_file: tests/qualify/revision/service/pom.xml
+                          variable_prefix: maven
+                          mode: raw_gav
+                          maven_properties: changelist=-RC1
+                  - step:
                       type: Run
                       name: Check step outputs
                       identifier: check_outputs
@@ -246,13 +276,17 @@ pipeline:
                           RAW_ARTIFACT_ID: <+execution.steps.bamboo_raw_gav.output.outputVariables.MAVEN_ARTIFACT_ID>
                           RAW_VERSION: <+execution.steps.bamboo_raw_gav.output.outputVariables.MAVEN_VERSION>
                           RAW_POM_VERSION: <+execution.steps.bamboo_raw_gav.output.outputVariables.POM_VERSION>
+                          REV_GROUP_ID: <+execution.steps.revision_raw_gav.output.outputVariables.MAVEN_GROUP_ID>
+                          REV_VERSION: <+execution.steps.revision_raw_gav.output.outputVariables.MAVEN_VERSION>
                         command: |-
                           $checks = @(
                             @('legacy POM_VERSION', $env:LEGACY_POM_VERSION, '1.4.2'),
                             @('MAVEN_GROUP_ID (from parent)', $env:RAW_GROUP_ID, 'com.elevance.platform'),
                             @('MAVEN_ARTIFACT_ID', $env:RAW_ARTIFACT_ID, 'claims-service'),
                             @('MAVEN_VERSION (from property)', $env:RAW_VERSION, '2.3.4'),
-                            @('POM_VERSION in raw_gav', $env:RAW_POM_VERSION, '2.3.4')
+                            @('POM_VERSION in raw_gav', $env:RAW_POM_VERSION, '2.3.4'),
+                            @('MAVEN_GROUP_ID (CI-friendly parent)', $env:REV_GROUP_ID, 'com.elevance.gbd'),
+                            @('MAVEN_VERSION (maven.config + maven_properties)', $env:REV_VERSION, '3.1.0-RC1')
                           )
                           $failed = 0
                           foreach ($c in $checks) {
@@ -337,6 +371,19 @@ pipeline:
                           variable_prefix: maven
                           mode: raw_gav
                   - step:
+                      type: Plugin
+                      name: CI-friendly revision from parent and -D
+                      identifier: revision_raw_gav
+                      timeout: 60m
+                      spec:
+                        connectorRef: <+pipeline.variables.dockerConnector>
+                        image: <+pipeline.variables.windows2025Image>
+                        settings:
+                          pom_file: tests/qualify/revision/service/pom.xml
+                          variable_prefix: maven
+                          mode: raw_gav
+                          maven_properties: changelist=-RC1
+                  - step:
                       type: Run
                       name: Check step outputs
                       identifier: check_outputs
@@ -351,13 +398,17 @@ pipeline:
                           RAW_ARTIFACT_ID: <+execution.steps.bamboo_raw_gav.output.outputVariables.MAVEN_ARTIFACT_ID>
                           RAW_VERSION: <+execution.steps.bamboo_raw_gav.output.outputVariables.MAVEN_VERSION>
                           RAW_POM_VERSION: <+execution.steps.bamboo_raw_gav.output.outputVariables.POM_VERSION>
+                          REV_GROUP_ID: <+execution.steps.revision_raw_gav.output.outputVariables.MAVEN_GROUP_ID>
+                          REV_VERSION: <+execution.steps.revision_raw_gav.output.outputVariables.MAVEN_VERSION>
                         command: |-
                           $checks = @(
                             @('legacy POM_VERSION', $env:LEGACY_POM_VERSION, '1.4.2'),
                             @('MAVEN_GROUP_ID (from parent)', $env:RAW_GROUP_ID, 'com.elevance.platform'),
                             @('MAVEN_ARTIFACT_ID', $env:RAW_ARTIFACT_ID, 'claims-service'),
                             @('MAVEN_VERSION (from property)', $env:RAW_VERSION, '2.3.4'),
-                            @('POM_VERSION in raw_gav', $env:RAW_POM_VERSION, '2.3.4')
+                            @('POM_VERSION in raw_gav', $env:RAW_POM_VERSION, '2.3.4'),
+                            @('MAVEN_GROUP_ID (CI-friendly parent)', $env:REV_GROUP_ID, 'com.elevance.gbd'),
+                            @('MAVEN_VERSION (maven.config + maven_properties)', $env:REV_VERSION, '3.1.0-RC1')
                           )
                           $failed = 0
                           foreach ($c in $checks) {

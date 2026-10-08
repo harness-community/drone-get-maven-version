@@ -26,6 +26,7 @@ To learn how to utilize Drone plugins in Harness CI, please consult the provided
 | pom_file <span style="font-size: 10px"><br/>`string`</span> | | Path to a POM file with any file name, for example `pom.xml` or `build/parent-pom.xml`. Takes precedence over `pom_path` (a warning is printed when both are set). |
 | mode <span style="font-size: 10px"><br/>`string`</span> | `effective`, `raw_gav`<br/><span style="color:blue;">`effective`</span> | `effective` asks Maven for the effective version. `raw_gav` reads the POM file without Maven. |
 | variable_prefix <span style="font-size: 10px"><br/>`string`</span> | <span style="color:blue;">`MAVEN`</span> | Prefix for the `raw_gav` output names. It is uppercased and every run of characters other than letters and digits becomes `_`, so `maven` becomes `MAVEN` and `my-app` becomes `MY_APP`. Ignored in `effective` mode. |
+| maven_properties <span style="font-size: 10px"><br/>`string`</span> | | Maven `-D` properties as `key=value` pairs separated by commas or new lines, for example `revision=1.2.3,changelist=`. A `-D` prefix is accepted and a key without `=` is set to `true`. In `effective` mode they are passed to `mvn` as `-Dkey=value`; in `raw_gav` mode they resolve `${key}` placeholders. Optional; without it the `mvn` command is unchanged. |
 
 Relative paths are resolved against the step's working directory (the stage workspace). Both `/` and `\` separators are accepted, and paths may contain spaces.
 
@@ -33,7 +34,13 @@ Relative paths are resolved against the step's working directory (the stage work
 
 - Only direct children of `<project>` are read. Values inside `<dependencies>`, `<dependencyManagement>`, `<build>`, `<profiles>` and similar sections are never used.
 - When `<groupId>` or `<version>` is absent, the value from `<parent>` is used and a log line says so. `<artifactId>` is never inherited.
-- `${name}` placeholders are replaced from the POM's own `<properties>` and from `project.groupId`, `project.artifactId`, `project.version`, `project.parent.*` and `parent.*`. Parent POMs, `settings.xml`, environment variables and `-D` arguments are not read. A placeholder that cannot be resolved this way (for example a CI-friendly `${revision}` set on the command line) fails the step; use `mode: effective` for those projects.
+- `${name}` placeholders are resolved the way Maven does, first match wins:
+  1. `project.groupId`, `project.artifactId`, `project.version`, `project.parent.*` and `parent.*`.
+  2. The `maven_properties` setting.
+  3. `-D` values in `.mvn/maven.config`, found like Maven does: in the nearest directory, from the POM's directory upwards, that contains a `.mvn` directory. Other options in that file are ignored.
+  4. The POM's own `<properties>`.
+  5. The `<properties>` of its parent POMs on disk, nearest first. The parent is found through `<parent><relativePath>` (default `../pom.xml`; a directory means its `pom.xml`) and is used only when its `groupId`, `artifactId` and literal `version` match the `<parent>` block. An empty `<relativePath/>` means the parent comes from a repository and is not read.
+- Parents in a Maven repository, `settings.xml`, profiles and environment variables are not read. A placeholder that cannot be resolved fails the step and says which parent POM was not found or not used; set the value with `maven_properties` or use `mode: effective` for those projects.
 - A missing or empty `groupId`, `artifactId` or `version` fails the step and names the field.
 - UTF-8 (with or without BOM), US-ASCII and ISO-8859-1 POMs are supported, with LF or CRLF line endings.
 
@@ -97,6 +104,23 @@ Windows images:
 ```
 
 ```yaml
+# CI-friendly version: <version>${revision}${changelist}</version> in the parent POM.
+# revision may also come from .mvn/maven.config; maven_properties wins over it.
+- step:
+    type: Plugin
+    name: Read CI-friendly version
+    identifier: read_revision
+    spec:
+      connectorRef: harness-docker-connector
+      image: harnesscommunity/drone-get-maven-version:windows-ltsc2022
+      settings:
+        pom_file: service/pom.xml
+        variable_prefix: maven
+        mode: raw_gav
+        maven_properties: revision=<+pipeline.sequenceId>.0.0,changelist=
+```
+
+```yaml
 # Effective version through Maven (original behavior)
 - step:
     type: Plugin
@@ -134,7 +158,7 @@ Release pipelines live in `.harness/` (same layout as `node-ci-images`):
 | :-- | :-- |
 | `validate.yaml` | `gofmt`, `go vet`, unit tests, binary builds, release gate (`scripts/check-release.sh`), secret scan. |
 | `publish.yaml` | Per LTSC, on the `windows-2019` / `windows-2022` / `windows-2025` pool: checks the host build, refuses an existing tag, tests and builds `drone-maven.exe`, pushes only the immutable `windows-ltscXXXX-rN` tag, then runs `tests/contracts/Test-ImageContract.ps1` against the pushed image. |
-| `qualify.yaml` | Per LTSC, on a `KubernetesDirect` Windows node with the matching build (`gcopdmwindowsbuildfarm` for 2019/2022, `gcopdmwindows2025` for 2025): runs the image contract, then runs the image as a Plugin step with only `pom_path` (backward compatibility) and as the Bamboo replacement (`pom_file`, `variable_prefix: maven`, `mode: raw_gav`, fixtures in `tests/qualify/`), and checks the step output variables. |
+| `qualify.yaml` | Per LTSC, on a `KubernetesDirect` Windows node with the matching build (`gcopdmwindowsbuildfarm` for 2019/2022, `gcopdmwindows2025` for 2025): runs the image contract, then runs the image as a Plugin step with only `pom_path` (backward compatibility) and as the Bamboo replacement (`pom_file`, `variable_prefix: maven`, `mode: raw_gav`, fixtures in `tests/qualify/`), and checks the step output variables. A third Plugin step resolves a CI-friendly `${revision}${changelist}` version from a parent POM, `.mvn/maven.config` and `maven_properties`. |
 | `promote.yaml` | Moves `windows-ltscXXXX` (and, on request, the legacy `windows-amd64`) to a qualified digest with `crane`, without rebuilding. |
 
 To release a changed image, bump `IMAGE_VERSION` in its `docker/Dockerfile.windows.amd64.ltscXXXX` and the tag in `.harness/publish.yaml` to the next `-rN`. The release gate fails if the two disagree, and publishing refuses to overwrite an existing `-rN`.

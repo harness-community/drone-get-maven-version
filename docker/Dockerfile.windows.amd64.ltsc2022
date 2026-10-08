@@ -7,7 +7,7 @@ ARG SOURCE_URL=https://github.com/harness-community/drone-get-maven-version
 ARG REVISION=unknown
 ARG BUILD_DATE=1970-01-01T00:00:00Z
 # Bump with every change to the image contents; it is also the published tag.
-ARG IMAGE_VERSION=windows-ltsc2022-r1
+ARG IMAGE_VERSION=windows-ltsc2022-r2
 
 USER ContainerAdministrator
 
