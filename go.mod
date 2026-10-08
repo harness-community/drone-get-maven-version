@@ -1,5 +1,3 @@
 module drone/plugin/maven-pom-version
 
-go 1.21.5
-
-require github.com/joho/godotenv v1.5.1 // indirect
+go 1.25.12

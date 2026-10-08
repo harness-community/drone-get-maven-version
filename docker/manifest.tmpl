@@ -1,0 +1,31 @@
+image: harnesscommunity/drone-get-maven-version:latest
+manifests:
+  -
+    image: harnesscommunity/drone-get-maven-version:linux-amd64
+    platform:
+      architecture: amd64
+      os: linux
+  -
+    image: harnesscommunity/drone-get-maven-version:linux-arm64
+    platform:
+      architecture: arm64
+      os: linux
+      variant: v8
+  -
+    image: harnesscommunity/drone-get-maven-version:windows-ltsc2019
+    platform:
+      architecture: amd64
+      os: windows
+      version: ltsc2019
+  -
+    image: harnesscommunity/drone-get-maven-version:windows-ltsc2022
+    platform:
+      architecture: amd64
+      os: windows
+      version: ltsc2022
+  -
+    image: harnesscommunity/drone-get-maven-version:windows-ltsc2025
+    platform:
+      architecture: amd64
+      os: windows
+      version: ltsc2025

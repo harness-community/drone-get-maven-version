@@ -2,51 +2,74 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
-	"os/exec"
-	"strings"
+)
+
+// Set through -ldflags "-X main.version=... -X main.build=...".
+var (
+	version = "dev"
+	build   = ""
 )
 
 func main() {
-	pomPath := os.Getenv("PLUGIN_POM_PATH")
+	os.Exit(run(os.Getenv, os.Stdout, os.Stderr))
+}
 
-	if pomPath == "" {
-		fmt.Println("POM Path is empty, exiting...")
-		os.Exit(1)
-	}
+// run executes the plugin and returns the process exit code.
+func run(getenv func(string) string, stdout, stderr io.Writer) int {
+	fmt.Fprintf(stdout, "drone-get-maven-version %s %s\n", version, build)
 
-	pathSeparator := "/"
-
-	fmt.Println("POM Path: ", pomPath)
-
-	// cmd := exec.Command("mvn", "-f", fmt.Sprintf("%s/pom.xml", pomPath), "help:evaluate", "-Dexpression=project.version", "-q", "-DforceStdout")
-	cmd := exec.Command("mvn", "-f", fmt.Sprintf("%s%s%s", pomPath, pathSeparator, "pom.xml"), "help:evaluate", "-Dexpression=project.version", "-q", "-DforceStdout")
-	output, err := cmd.Output()
-
-	// check if os is windows
-
+	cfg, err := loadConfig(getenv)
 	if err != nil {
-		fmt.Println("Error: ", err.Error())
-		os.Exit(1)
+		fmt.Fprintln(stderr, "Error:", err)
+		return 1
+	}
+	for _, w := range cfg.Warnings {
+		fmt.Fprintln(stderr, "Warning:", w)
+	}
+	fmt.Fprintln(stdout, "POM file:", cfg.PomFile)
+	fmt.Fprintln(stdout, "Mode:", cfg.Mode)
+
+	var outputs []Output
+	switch cfg.Mode {
+	case modeRawGAV:
+		logf := func(format string, args ...any) {
+			fmt.Fprintf(stdout, format+"\n", args...)
+		}
+		userProps, err := loadUserProperties(cfg.PomFile, cfg.MavenProperties, logf)
+		if err != nil {
+			fmt.Fprintln(stderr, "Error:", err)
+			return 1
+		}
+		gav, err := readRawGAV(cfg.PomFile, userProps, logf)
+		if err != nil {
+			fmt.Fprintln(stderr, "Error:", err)
+			return 1
+		}
+		fmt.Fprintf(stdout, "groupId: %s\nartifactId: %s\nversion: %s\n", gav.GroupID, gav.ArtifactID, gav.Version)
+		outputs = []Output{
+			{cfg.Prefix + "_GROUP_ID", gav.GroupID},
+			{cfg.Prefix + "_ARTIFACT_ID", gav.ArtifactID},
+			{cfg.Prefix + "_VERSION", gav.Version},
+			{"POM_VERSION", gav.Version},
+		}
+	default:
+		v, err := effectiveVersion(cfg.PomFile, cfg.MavenProperties)
+		if err != nil {
+			fmt.Fprintln(stderr, "Error:", err)
+			return 1
+		}
+		fmt.Fprintln(stdout, "POM Version:", v)
+		outputs = []Output{{"POM_VERSION", v}}
 	}
 
-	pomVersion := strings.TrimSpace(string(output))
-
-	fmt.Println("POM Version: ", pomVersion)
-	os.Setenv("POM_VERSION", pomVersion)
-
-	outputFile, err := os.OpenFile(os.Getenv("DRONE_OUTPUT"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Println("Error opening output file:", err)
-		os.Exit(1)
+	if err := writeOutputs(cfg.OutputFile, outputs); err != nil {
+		fmt.Fprintln(stderr, "Error:", err)
+		return 1
 	}
-	defer outputFile.Close()
-
-	_, err = fmt.Fprintf(outputFile, "POM_VERSION=%s\n", pomVersion)
-	if err != nil {
-		fmt.Println("Error writing to output file:", err)
-		os.Exit(1)
+	for _, o := range outputs {
+		fmt.Fprintf(stdout, "%s written to DRONE_OUTPUT\n", o.Key)
 	}
-
-	fmt.Println("POM version written to DRONE_OUTPUT.env file")
+	return 0
 }

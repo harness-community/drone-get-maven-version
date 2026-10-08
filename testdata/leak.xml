@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Every nested groupId/artifactId/version below must be ignored. The
+     project's own groupId and version are inherited from <parent>. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>leak.depmgmt</groupId>
+        <artifactId>leak-depmgmt</artifactId>
+        <version>9.9.1</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+  <dependencies>
+    <dependency>
+      <groupId>leak.dependency</groupId>
+      <artifactId>leak-dependency</artifactId>
+      <version>9.9.2</version>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>leak.plugin</groupId>
+        <artifactId>leak-plugin</artifactId>
+        <version>9.9.3</version>
+      </plugin>
+    </plugins>
+  </build>
+  <profiles>
+    <profile>
+      <id>release</id>
+      <properties>
+        <app.version>9.9.4</app.version>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>leak.profile</groupId>
+          <artifactId>leak-profile</artifactId>
+          <version>9.9.5</version>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
+  <parent>
+    <groupId>com.example.parent</groupId>
+    <artifactId>parent-pom</artifactId>
+    <version>3.0.0</version>
+  </parent>
+  <artifactId>leak-guard</artifactId>
+</project>

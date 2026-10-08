@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example.cifriendly</groupId>
+  <artifactId>cifriendly-parent</artifactId>
+  <version>${revision}${changelist}</version>
+  <packaging>pom</packaging>
+  <properties>
+    <revision>0.0.0</revision>
+    <changelist></changelist>
+  </properties>
+  <modules>
+    <module>service</module>
+  </modules>
+</project>

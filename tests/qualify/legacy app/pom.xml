@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example.qualify</groupId>
+  <artifactId>legacy-app</artifactId>
+  <version>1.4.2</version>
+  <packaging>pom</packaging>
+</project>

@@ -1,0 +1,118 @@
+pipeline:
+  name: Maven POM Parser - Promote Windows Images
+  identifier: maven_pom_promote
+  projectIdentifier: Drone_Plugins
+  orgIdentifier: default
+  description: Points the moving windows-ltscXXXX tags at an immutable windows-ltscXXXX-rN image by digest, without rebuilding. Give each LTSC to promote its revision (for example r1) and the digest that passed qualification; leave both empty to skip that LTSC. The run fails if the immutable tag does not resolve to the qualified digest. The legacy windows-amd64 tag keeps ltsc2022 content and moves only when requested.
+  properties:
+    ci:
+      codebase:
+        repoName: drone-get-maven-version
+        build: <+input>
+  variables:
+    - name: dockerUsername
+      type: String
+      value: <+input>
+    - name: dockerPassword
+      type: Secret
+      value: <+input>
+    - name: ltsc2019Revision
+      type: String
+      description: Immutable revision to promote for LTSC 2019, for example r1. Empty skips LTSC 2019.
+      value: <+input>.default("")
+    - name: ltsc2019Digest
+      type: String
+      description: Qualified digest of windows-ltsc2019-<revision>, sha256:...
+      value: <+input>.default("")
+    - name: ltsc2022Revision
+      type: String
+      description: Immutable revision to promote for LTSC 2022, for example r1. Empty skips LTSC 2022.
+      value: <+input>.default("")
+    - name: ltsc2022Digest
+      type: String
+      description: Qualified digest of windows-ltsc2022-<revision>, sha256:...
+      value: <+input>.default("")
+    - name: moveLegacyWindowsAmd64
+      type: String
+      description: When true, also move the deprecated windows-amd64 tag to the promoted LTSC 2022 digest.
+      value: <+input>.default(false).allowedValues(false,true)
+    - name: ltsc2025Revision
+      type: String
+      description: Immutable revision to promote for LTSC 2025, for example r1. Empty skips LTSC 2025.
+      value: <+input>.default("")
+    - name: ltsc2025Digest
+      type: String
+      description: Qualified digest of windows-ltsc2025-<revision>, sha256:...
+      value: <+input>.default("")
+  stages:
+    - stage:
+        name: Promote qualified digests
+        identifier: promote_qualified_digests
+        type: CI
+        spec:
+          cloneCodebase: false
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Move moving tags by digest
+                  identifier: move_moving_tags
+                  timeout: 30m
+                  spec:
+                    connectorRef: Harness_Community
+                    image: alpine:3.22
+                    shell: Sh
+                    envVariables:
+                      DOCKER_USERNAME: <+pipeline.variables.dockerUsername>
+                      DOCKER_PASSWORD: <+pipeline.variables.dockerPassword>
+                      REPO: harnesscommunity/drone-get-maven-version
+                      LTSC2019_REVISION: <+pipeline.variables.ltsc2019Revision>
+                      LTSC2019_DIGEST: <+pipeline.variables.ltsc2019Digest>
+                      LTSC2022_REVISION: <+pipeline.variables.ltsc2022Revision>
+                      LTSC2022_DIGEST: <+pipeline.variables.ltsc2022Digest>
+                      LTSC2025_REVISION: <+pipeline.variables.ltsc2025Revision>
+                      LTSC2025_DIGEST: <+pipeline.variables.ltsc2025Digest>
+                      MOVE_LEGACY: <+pipeline.variables.moveLegacyWindowsAmd64>
+                    command: |
+                      set -eu
+                      version=v0.20.6
+                      archive=go-containerregistry_Linux_x86_64.tar.gz
+                      wget -q "https://github.com/google/go-containerregistry/releases/download/${version}/${archive}"
+                      wget -q "https://github.com/google/go-containerregistry/releases/download/${version}/checksums.txt"
+                      grep " ${archive}$" checksums.txt | sha256sum -c -
+                      tar xzf "$archive" crane
+                      install crane /usr/local/bin/crane
+                      crane auth login index.docker.io -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
+
+                      promote() {
+                        ltsc=$1; revision=$2; digest=$3; legacy=${4:-false}
+                        if [ -z "$revision" ] && [ -z "$digest" ]; then echo "skipping $ltsc"; return 0; fi
+                        if [ -z "$revision" ] || [ -z "$digest" ]; then echo "$ltsc needs both a revision and a digest" >&2; exit 1; fi
+                        case "$revision" in r[1-9]*) ;; *) echo "$ltsc revision '$revision' must look like r1" >&2; exit 1 ;; esac
+                        case "$digest" in sha256:*) ;; *) echo "$ltsc digest '$digest' must start with sha256:" >&2; exit 1 ;; esac
+                        immutable="$REPO:windows-$ltsc-$revision"
+                        actual=$(crane digest "$immutable")
+                        if [ "$actual" != "$digest" ]; then
+                          echo "$immutable is $actual, not the qualified $digest; refusing to promote" >&2
+                          exit 1
+                        fi
+                        moving="$REPO:windows-$ltsc"
+                        crane copy "$REPO@$digest" "$moving"
+                        [ "$(crane digest "$moving")" = "$digest" ]
+                        echo "$moving -> $digest"
+                        if [ "$legacy" = "true" ]; then
+                          crane copy "$REPO@$digest" "$REPO:windows-amd64"
+                          [ "$(crane digest "$REPO:windows-amd64")" = "$digest" ]
+                          echo "$REPO:windows-amd64 -> $digest (legacy)"
+                        fi
+                      }
+
+                      promote ltsc2019 "$LTSC2019_REVISION" "$LTSC2019_DIGEST"
+                      promote ltsc2022 "$LTSC2022_REVISION" "$LTSC2022_DIGEST" "$MOVE_LEGACY"
+                      promote ltsc2025 "$LTSC2025_REVISION" "$LTSC2025_DIGEST"

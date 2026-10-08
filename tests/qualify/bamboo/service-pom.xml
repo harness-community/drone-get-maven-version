@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.elevance.platform</groupId>
+    <artifactId>platform-parent</artifactId>
+    <version>7.0.0</version>
+  </parent>
+  <artifactId>claims-service</artifactId>
+  <version>${service.version}</version>
+  <properties>
+    <service.version>2.3.4</service.version>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.2</version>
+    </dependency>
+  </dependencies>
+</project>

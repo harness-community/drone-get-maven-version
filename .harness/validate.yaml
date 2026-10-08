@@ -1,0 +1,59 @@
+pipeline:
+  name: Maven POM Parser - Validate Source
+  identifier: maven_pom_validate
+  projectIdentifier: Drone_Plugins
+  orgIdentifier: default
+  properties:
+    ci:
+      codebase:
+        connectorRef: GitHub_Harness_Community_Org
+        repoName: " drone-get-maven-version"
+        build: <+input>
+        sparseCheckout: []
+  stages:
+    - stage:
+        name: Validate source
+        identifier: validate_source
+        type: CI
+        spec:
+          cloneCodebase: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Format vet and unit tests
+                  identifier: go_checks
+                  spec:
+                    connectorRef: Harness_Community
+                    image: golang:1.25.12
+                    shell: Sh
+                    command: |
+                      set -eu
+                      test -z "$(gofmt -l .)"
+                      go vet ./...
+                      go test -count=1 ./...
+                      sh scripts/build.sh
+              - step:
+                  type: Run
+                  name: Release gate
+                  identifier: release_gate
+                  spec:
+                    connectorRef: Harness_Community
+                    image: alpine:3.22
+                    shell: Sh
+                    command: sh scripts/check-release.sh
+              - step:
+                  type: Run
+                  name: Secret scan
+                  identifier: secret_scan
+                  spec:
+                    connectorRef: Harness_Community
+                    image: zricethezav/gitleaks:v8.28.0
+                    shell: Sh
+                    command: gitleaks detect --source . --no-git

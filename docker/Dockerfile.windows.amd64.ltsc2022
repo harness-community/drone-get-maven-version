@@ -1,0 +1,62 @@
+# escape=`
+# harness/ci-base ltsc2022-r1 (Windows build 20348).
+ARG BASE_IMAGE=harness/ci-base@sha256:56b3df7214af63bcd3e570bdb21a52ce250a8a9f69605bf74b0b3035c9b9ce84
+FROM ${BASE_IMAGE}
+
+ARG SOURCE_URL=https://github.com/harness-community/drone-get-maven-version
+ARG REVISION=unknown
+ARG BUILD_DATE=1970-01-01T00:00:00Z
+# Bump with every change to the image contents; it is also the published tag.
+ARG IMAGE_VERSION=windows-ltsc2022-r2
+
+USER ContainerAdministrator
+
+ENV chocolateyVersion=1.4.0
+
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+# ci-base points TEMP at C:\harness\temp; make sure it exists for the installers.
+RUN New-Item -ItemType Directory -Force -Path $env:TEMP | Out-Null
+
+RUN Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+
+# Maven and a JRE (enough for mvn help:evaluate), unpinned as before. The
+# package folders carry the version in their name, so move them to fixed paths
+# that ENV can point at; junctions do not survive the layer commit on Windows.
+# choco is called by full path because ci-base fixes PATH through ENV, which
+# hides the PATH change Chocolatey made.
+RUN $choco = 'C:\ProgramData\chocolatey\bin\choco.exe'; `
+    foreach ($pkg in 'maven', 'temurin17jre') { `
+        & $choco install $pkg -y --no-progress; `
+        if ($LASTEXITCODE -notin 0, 3010) { throw "choco install $pkg failed: $LASTEXITCODE" } `
+    }; `
+    $mvn = @(Get-ChildItem C:\ProgramData\chocolatey\lib\maven -Directory -Filter 'apache-maven-*'); `
+    if ($mvn.Count -ne 1) { throw "expected one apache-maven-* folder, found $($mvn.Count)" }; `
+    $java = Get-ChildItem $env:ProgramFiles -Recurse -Depth 4 -Filter java.exe -ErrorAction SilentlyContinue | `
+        Where-Object { $_.FullName -match 'Adoptium|Temurin' } | Select-Object -First 1; `
+    if (-not $java) { throw 'java.exe from the Temurin JRE not found under Program Files' }; `
+    New-Item -ItemType Directory -Force -Path C:\tools | Out-Null; `
+    Move-Item $mvn[0].FullName C:\tools\maven; `
+    Move-Item $java.Directory.Parent.FullName C:\tools\java; `
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue "$env:TEMP\*", C:\Windows\Temp\*, C:\ProgramData\chocolatey\logs
+
+ENV JAVA_HOME=C:\tools\java `
+    MAVEN_HOME=C:\tools\maven `
+    PATH="C:\tools\maven\bin;C:\tools\java\bin;${PATH}"
+
+# Checked in its own layer so a path that does not survive the commit fails the build.
+RUN java -version; `
+    if ($LASTEXITCODE -ne 0) { throw 'java -version failed' }; `
+    mvn --version; `
+    if ($LASTEXITCODE -ne 0) { throw 'mvn --version failed' }
+
+WORKDIR C:\app
+COPY release/windows/amd64/drone-maven.exe C:/app/drone-maven.exe
+
+LABEL org.opencontainers.image.source="${SOURCE_URL}" `
+      org.opencontainers.image.revision="${REVISION}" `
+      org.opencontainers.image.created="${BUILD_DATE}" `
+      org.opencontainers.image.version="${IMAGE_VERSION}" `
+      io.harness.release.status="candidate"
+
+ENTRYPOINT ["C:\\app\\drone-maven.exe"]

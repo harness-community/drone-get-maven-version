@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.elevance.gbd</groupId>
+    <artifactId>payments-parent</artifactId>
+    <version>${revision}${changelist}</version>
+  </parent>
+  <artifactId>payments-service</artifactId>
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.2</version>
+    </dependency>
+  </dependencies>
+</project>
